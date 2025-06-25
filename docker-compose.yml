@@ -1,0 +1,28 @@
+services:
+  cor-matrix-api:
+    build:
+      context: .
+      dockerfile: src/api/Dockerfile
+    container_name: cor-matrix-api
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_FILE_NAME=${DB_FILE_NAME:-cor-matrix.db}
+      - API_PORT=3000
+      - API_KEY=${API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - cor-matrix-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  cor-matrix-data:
+    driver: local

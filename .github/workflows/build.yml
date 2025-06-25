@@ -1,0 +1,406 @@
+name: Build and Publish
+
+on:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/cor-matrix-api
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      version: ${{ steps.package-version.outputs.version }}
+      channel: ${{ steps.context.outputs.channel }}
+      is_production: ${{ steps.context.outputs.is_production }}
+      is_rc: ${{ steps.context.outputs.is_rc }}
+      npm_version: ${{ steps.npm-version.outputs.version }}
+      docker_tag: ${{ steps.docker-version.outputs.tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate package.json and extract version
+        id: package-version
+        run: |
+          if [[ ! -f "package.json" ]]; then
+            echo "❌ package.json not found"
+            exit 1
+          fi
+
+          VERSION=$(node -p "
+            try {
+              const pkg = require('./package.json');
+              if (!pkg.version) throw new Error('No version field');
+              if (!/^\\d+\\.\\d+\\.\\d+/.test(pkg.version)) throw new Error('Invalid semver');
+              pkg.version;
+            } catch (e) {
+              console.error('Error:', e.message);
+              process.exit(1);
+            }
+          ")
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Package version: $VERSION"
+
+      - name: Determine build context
+        id: context
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "channel=production" >> $GITHUB_OUTPUT
+            echo "is_production=true" >> $GITHUB_OUTPUT
+            echo "is_rc=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/rc" ]]; then
+            echo "channel=rc" >> $GITHUB_OUTPUT
+            echo "is_production=false" >> $GITHUB_OUTPUT
+            echo "is_rc=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Unsupported branch: ${{ github.ref_name }}"
+            exit 1
+          fi
+
+      - name: Determine NPM version
+        id: npm-version
+        run: |
+          # Read version from client package.json for NPM operations
+          if [[ ! -f "src/client/package.json" ]]; then
+            echo "❌ src/client/package.json not found"
+            exit 1
+          fi
+          
+          CLIENT_VERSION=$(node -p "
+            try {
+              const pkg = require('./src/client/package.json');
+              if (!pkg.version) throw new Error('No version field in client package.json');
+              if (!/^\\d+\\.\\d+\\.\\d+/.test(pkg.version)) throw new Error('Invalid semver in client package.json');
+              pkg.version;
+            } catch (e) {
+              console.error('Error:', e.message);
+              process.exit(1);
+            }
+          ")
+          
+          if [[ "${{ steps.context.outputs.is_rc }}" == "true" ]]; then
+            NPM_VERSION="${CLIENT_VERSION}-rc"
+          else
+            NPM_VERSION="${CLIENT_VERSION}"
+          fi
+          echo "version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          echo "✅ NPM version (from client): $NPM_VERSION"
+
+      - name: Determine Docker tag
+        id: docker-version
+        run: |
+          BASE_VERSION="${{ steps.package-version.outputs.version }}"
+          if [[ "${{ steps.context.outputs.is_rc }}" == "true" ]]; then
+            DOCKER_TAG="rc-v${BASE_VERSION}"
+          else
+            DOCKER_TAG="v${BASE_VERSION}"
+          fi
+          echo "tag=$DOCKER_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Docker tag: $DOCKER_TAG"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.15
+
+      - name: Install test dependencies
+        run: bun install
+
+      - name: Integration Test - Complete API Workflow
+        run: |
+          echo "🧪 Running comprehensive integration tests with Testcontainers..."          
+          bun run test:integration
+
+  publish-docker:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      published: ${{ steps.publish-result.outputs.published }}
+      skipped: ${{ steps.publish-result.outputs.skipped }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry (for check)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if Docker image already exists
+        id: check-docker
+        run: |
+          DOCKER_TAG="${{ needs.build-and-test.outputs.docker_tag }}"
+          IMAGE_URL="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${DOCKER_TAG}"
+          
+          echo "🔍 Checking if Docker image exists: $IMAGE_URL"
+          
+          # Try to inspect the image manifest
+          if docker manifest inspect "$IMAGE_URL" >/dev/null 2>&1; then
+            echo "✅ Docker image $DOCKER_TAG already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ Docker image $DOCKER_TAG does not exist, will publish"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-docker.outputs.exists == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check-docker.outputs.exists == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check-docker.outputs.exists == 'false'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ needs.build-and-test.outputs.is_production }}
+            type=raw,value=${{ needs.build-and-test.outputs.docker_tag }}
+          labels: |
+            org.opencontainers.image.title=COR-Matrix API
+            org.opencontainers.image.description=Code Origin Ratio Matrix API Server
+            org.opencontainers.image.version=${{ needs.build-and-test.outputs.version }}
+            org.opencontainers.image.vendor=Presidio
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and push Docker image
+        if: steps.check-docker.outputs.exists == 'false'
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: src/api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+          provenance: true
+          sbom: true
+
+      - name: Set publish result
+        id: publish-result
+        run: |
+          if [[ "${{ steps.check-docker.outputs.exists }}" == "true" ]]; then
+            echo "published=false" >> $GITHUB_OUTPUT
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "🔄 Docker publishing skipped - image already exists"
+          else
+            echo "published=true" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "✅ Docker image published successfully"
+          fi
+
+  publish-npm:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      published: ${{ steps.publish-result.outputs.published }}
+      skipped: ${{ steps.publish-result.outputs.skipped }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.15
+
+      - name: Setup Node.js (for npm)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Check if NPM version already exists
+        id: check-npm
+        run: |
+          NPM_VERSION="${{ needs.build-and-test.outputs.npm_version }}"
+          PACKAGE_NAME="@presidio-dev/cor-matrix"
+          
+          echo "🔍 Checking if NPM version exists: ${PACKAGE_NAME}@${NPM_VERSION}"
+          
+          if npm view "${PACKAGE_NAME}@${NPM_VERSION}" version >/dev/null 2>&1; then
+            echo "✅ NPM version $NPM_VERSION already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ NPM version $NPM_VERSION does not exist, will publish"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install root dependencies
+        if: steps.check-npm.outputs.exists == 'false'
+        run: bun install
+
+      - name: Install client dependencies
+        if: steps.check-npm.outputs.exists == 'false'
+        working-directory: src/client
+        run: bun install
+
+      - name: Update package version for RC
+        if: steps.check-npm.outputs.exists == 'false' && needs.build-and-test.outputs.is_rc == 'true'
+        working-directory: src/client
+        run: |
+          NPM_VERSION="${{ needs.build-and-test.outputs.npm_version }}"
+          echo "📝 Updating package.json version to: $NPM_VERSION"
+          
+          # Update the version
+          node -p "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NPM_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+            'Version updated to: ' + pkg.version;
+          "
+          
+          # Validate the version was actually updated
+          ACTUAL_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$ACTUAL_VERSION" != "$NPM_VERSION" ]]; then
+            echo "❌ Version update failed. Expected: $NPM_VERSION, Got: $ACTUAL_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version validation passed: $ACTUAL_VERSION"
+
+      - name: Build client SDK
+        if: steps.check-npm.outputs.exists == 'false'
+        working-directory: src/client
+        run: |
+          echo "🔨 Building client SDK..."
+          bun run build
+          echo "✅ Client SDK built successfully"
+
+      - name: Publish to NPM
+        if: steps.check-npm.outputs.exists == 'false'
+        working-directory: src/client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ "${{ needs.build-and-test.outputs.is_rc }}" == "true" ]]; then
+            echo "📦 Publishing RC version to NPM with 'rc' tag..."
+            npm publish --tag rc
+          else
+            echo "📦 Publishing stable version to NPM..."
+            npm publish
+          fi
+          echo "✅ NPM package published successfully"
+
+      - name: Set publish result
+        id: publish-result
+        run: |
+          if [[ "${{ steps.check-npm.outputs.exists }}" == "true" ]]; then
+            echo "published=false" >> $GITHUB_OUTPUT
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "🔄 NPM publishing skipped - version already exists"
+          else
+            echo "published=true" >> $GITHUB_OUTPUT
+            echo "skipped=false" >> $GITHUB_OUTPUT
+            echo "✅ NPM package published successfully"
+          fi
+
+  generate-summary:
+    needs: [build-and-test, publish-docker, publish-npm]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "## 🚀 Build and Publish Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Channel:** \`${{ needs.build-and-test.outputs.channel }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Base Version:** \`${{ needs.build-and-test.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Integration Tests Status
+          echo "### 🧪 Integration Tests" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.build-and-test.result }}" == "success" ]]; then
+            echo "**Status:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Docker Publishing Status
+          echo "### 🐳 Docker Publishing" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${{ needs.build-and-test.outputs.docker_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.publish-docker.result }}" == "success" ]]; then
+            if [[ "${{ needs.publish-docker.outputs.published }}" == "true" ]]; then
+              echo "**Status:** ✅ Published Successfully" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Status:** 🔄 Skipped (already exists)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # NPM Publishing Status
+          echo "### 📦 NPM Publishing" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** \`@presidio-dev/cor-matrix\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ needs.build-and-test.outputs.npm_version }}\`" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.build-and-test.outputs.is_rc }}" == "true" ]]; then
+            echo "**Tag:** \`rc\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Tag:** \`latest\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "${{ needs.publish-npm.result }}" == "success" ]]; then
+            if [[ "${{ needs.publish-npm.outputs.published }}" == "true" ]]; then
+              echo "**Status:** ✅ Published Successfully" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "**Status:** 🔄 Skipped (already exists)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Installation Instructions
+          if [[ "${{ needs.publish-npm.outputs.published }}" == "true" ]]; then
+            echo "### 📥 Installation" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ needs.build-and-test.outputs.is_rc }}" == "true" ]]; then
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "npm install @presidio-dev/cor-matrix@rc" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+              echo "npm install @presidio-dev/cor-matrix" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

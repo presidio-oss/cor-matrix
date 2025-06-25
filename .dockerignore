@@ -1,0 +1,10 @@
+.vscode/
+example/
+logs/
+node_modules/
+*.db
+db*
+.env
+*.tar
+.envrc
+data/
