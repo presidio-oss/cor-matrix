@@ -1,6 +1,6 @@
-# CorMatrix (Code Origin Ratio) JS SDK & CLI
+# Cor-Matrix (Code Origin Ratio) JS SDK & CLI
 
-A Node.js SDK and CLI to collect, buffer, and report code origin ratios to a remote server.
+A Node.js SDK and CLI to collect, buffer, and report code origin ratios to a remote server and generate report to understand how much AI-generated code survives in your codebase over time.
 
 ---
 
@@ -66,7 +66,11 @@ The CLI provides a `report` command to analyze your codebase and compare it with
 ### Run with npx (recommended)
 
 ```bash
-npx @presidio-dev/cor-matrix report --workspace-id <id> --project-path <path> --api-url <url> --api-token <token>
+npx @presidio-dev/cor-matrix report \
+  --workspace-id <id> \
+  --project-path <path> \
+  --api-url <url> \
+  --api-token <token>
 ```
 
 ### CLI Options
@@ -93,15 +97,17 @@ npx @presidio-dev/cor-matrix report
 The CLI will output a report with the following sections:
 
 ```bash
-🔍 Fetching code origin ratios from API...
-✔ Code origin ratios fetched successfully.
-📝 Generating report for code in: /path/to/your/project
+ℹ Starting report generation...
+ℹ Fetching code origin signatures...
+✔ Remote signatures fetched.
+ℹ Analyzing local files in /path/to/your/project...
+✔ Local files analyzed.
 
- COR-Matrix REPORT
-────────────────────────────────────────────────
-AI Generated Lines:             263 (100.00%)
-AI Generated Retained Lines:     40 (15.21%)
-AI Generated Removed/Changed:   223 (84.79%)
-────────────────────────────────────────────────
-Report generated on: 6/4/2025, 6:41:16 PM
+ COR-Matrix Report
+────────────────────────────────────────────────────────────────
+Codebase Path:                  /path/to/your/project
+Report Time:                    June 1, 2025 at 6:00 PM
+Total Lines:                    961 (100%)
+AI-Written Lines:               40 of 961 (4.16%)
+────────────────────────────────────────────────────────────────
 ```

@@ -44,7 +44,7 @@ export class TokenService {
     jwtSign: JwtSignFunc,
     description?: string,
     expiresAt?: number | null,
-  ): Promise<any> {
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const workspace = await this.dbService
         .getConnection()
@@ -109,7 +109,7 @@ export class TokenService {
     includeRevoked: boolean = false,
     limit: number = 50,
     offset: number = 0,
-  ): Promise<any[]> {
+  ): Promise<(typeof WorkspaceTokenTable.$inferSelect)[]> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -145,7 +145,9 @@ export class TokenService {
   /**
    * Get a single token by ID
    */
-  async getById(tokenId: string): Promise<any> {
+  async getById(
+    tokenId: string,
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
       const result = await connection
@@ -154,7 +156,7 @@ export class TokenService {
         .where(eq(WorkspaceTokenTable.id, tokenId))
         .limit(1);
 
-      if (!result.length) {
+      if (!result.length || !result[0]) {
         logger.error(`Token with id ${tokenId} not found`);
         throw new TokenNotFoundError({
           message: `Token with id ${tokenId} not found`,
@@ -180,7 +182,7 @@ export class TokenService {
       description?: string;
       expiresAt?: number | null;
     },
-  ): Promise<any> {
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -223,7 +225,9 @@ export class TokenService {
   /**
    * Delete a token
    */
-  async delete(tokenId: string): Promise<any> {
+  async delete(
+    tokenId: string,
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -251,7 +255,9 @@ export class TokenService {
   /**
    * Revoke a token
    */
-  async revoke(tokenId: string): Promise<any> {
+  async revoke(
+    tokenId: string,
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -287,7 +293,9 @@ export class TokenService {
   /**
    * Unrevoke a token
    */
-  async unrevoke(tokenId: string): Promise<any> {
+  async unrevoke(
+    tokenId: string,
+  ): Promise<typeof WorkspaceTokenTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 

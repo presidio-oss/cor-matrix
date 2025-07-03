@@ -27,7 +27,7 @@ export default new Elysia({
           body.description,
           body.expiresAt,
         );
-        return status(201, result);
+        return status(200, result);
       } catch (error: any) {
         if (error.code === "WORKSPACE_NOT_FOUND") {
           return status(404, {
@@ -67,7 +67,7 @@ export default new Elysia({
         ),
       }),
       response: {
-        201: t.Object({
+        200: t.Object({
           id: t.String({
             description: "The ID of the token",
             examples: ["tk:01JWGPXJEC17YGK9X60P8RA8AZ"],

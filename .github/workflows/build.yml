@@ -77,7 +77,7 @@ jobs:
             echo "❌ src/client/package.json not found"
             exit 1
           fi
-          
+
           CLIENT_VERSION=$(node -p "
             try {
               const pkg = require('./src/client/package.json');
@@ -89,7 +89,7 @@ jobs:
               process.exit(1);
             }
           ")
-          
+
           if [[ "${{ steps.context.outputs.is_rc }}" == "true" ]]; then
             NPM_VERSION="${CLIENT_VERSION}-rc"
           else
@@ -150,9 +150,9 @@ jobs:
         run: |
           DOCKER_TAG="${{ needs.build-and-test.outputs.docker_tag }}"
           IMAGE_URL="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${DOCKER_TAG}"
-          
+
           echo "🔍 Checking if Docker image exists: $IMAGE_URL"
-          
+
           # Try to inspect the image manifest
           if docker manifest inspect "$IMAGE_URL" >/dev/null 2>&1; then
             echo "✅ Docker image $DOCKER_TAG already exists"
@@ -242,17 +242,17 @@ jobs:
       - name: Setup Node.js (for npm)
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Check if NPM version already exists
         id: check-npm
         run: |
           NPM_VERSION="${{ needs.build-and-test.outputs.npm_version }}"
           PACKAGE_NAME="@presidio-dev/cor-matrix"
-          
+
           echo "🔍 Checking if NPM version exists: ${PACKAGE_NAME}@${NPM_VERSION}"
-          
+
           if npm view "${PACKAGE_NAME}@${NPM_VERSION}" version >/dev/null 2>&1; then
             echo "✅ NPM version $NPM_VERSION already exists"
             echo "exists=true" >> $GITHUB_OUTPUT
@@ -276,7 +276,7 @@ jobs:
         run: |
           NPM_VERSION="${{ needs.build-and-test.outputs.npm_version }}"
           echo "📝 Updating package.json version to: $NPM_VERSION"
-          
+
           # Update the version
           node -p "
             const fs = require('fs');
@@ -285,14 +285,14 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
             'Version updated to: ' + pkg.version;
           "
-          
+
           # Validate the version was actually updated
           ACTUAL_VERSION=$(node -p "require('./package.json').version")
           if [[ "$ACTUAL_VERSION" != "$NPM_VERSION" ]]; then
             echo "❌ Version update failed. Expected: $NPM_VERSION, Got: $ACTUAL_VERSION"
             exit 1
           fi
-          
+
           echo "✅ Version validation passed: $ACTUAL_VERSION"
 
       - name: Build client SDK
@@ -345,7 +345,7 @@ jobs:
           echo "**Base Version:** \`${{ needs.build-and-test.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Integration Tests Status
           echo "### 🧪 Integration Tests" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ needs.build-and-test.result }}" == "success" ]]; then
@@ -354,7 +354,7 @@ jobs:
             echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Docker Publishing Status
           echo "### 🐳 Docker Publishing" >> $GITHUB_STEP_SUMMARY
           echo "**Registry:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
@@ -370,7 +370,7 @@ jobs:
           fi
           echo "**Platforms:** linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # NPM Publishing Status
           echo "### 📦 NPM Publishing" >> $GITHUB_STEP_SUMMARY
           echo "**Package:** \`@presidio-dev/cor-matrix\`" >> $GITHUB_STEP_SUMMARY
@@ -390,7 +390,7 @@ jobs:
             echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Installation Instructions
           if [[ "${{ needs.publish-npm.outputs.published }}" == "true" ]]; then
             echo "### 📥 Installation" >> $GITHUB_STEP_SUMMARY

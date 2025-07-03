@@ -136,7 +136,7 @@ describe("Edge Cases Integration Tests", () => {
         .send(JSON.stringify({ entries: corData.entries }));
 
       // Should still work or give a meaningful error
-      expect([201, 400, 415, 422]).toContain(response.status);
+      expect([200, 400, 415, 422]).toContain(response.status);
     });
 
     test("should handle invalid Content-Type", async () => {
@@ -176,7 +176,7 @@ describe("Edge Cases Integration Tests", () => {
         .send({ entries: largeEntries });
 
       // Should either succeed or reject with meaningful error
-      expect([201, 413, 422, 500]).toContain(response.status);
+      expect([200, 413, 422, 500]).toContain(response.status);
     });
 
     test("should handle empty request bodies", async () => {
@@ -267,7 +267,7 @@ describe("Edge Cases Integration Tests", () => {
 
       // Both should succeed (COR recording should be safe for concurrency)
       responses.forEach((response) => {
-        expect(response.status).toBe(201);
+        expect(response.status).toBe(200);
       });
     });
   });
@@ -299,7 +299,7 @@ describe("Edge Cases Integration Tests", () => {
         .send(duplicateCorData);
 
       // Should accept duplicate signatures (they might represent the same code in different contexts)
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
 
       // Verify the data was recorded correctly
       client.setBearerToken(bearerToken);
@@ -334,7 +334,7 @@ describe("Edge Cases Integration Tests", () => {
         .send(mixedFieldData);
 
       // Should handle empty/minimal fields gracefully
-      expect([201, 422]).toContain(response.status);
+      expect([200, 422]).toContain(response.status);
     });
 
     test("should handle very large individual COR entries", async () => {
@@ -365,7 +365,7 @@ describe("Edge Cases Integration Tests", () => {
         .send(largeEntryData);
 
       // Should handle large individual entries
-      expect([201, 422]).toContain(response.status);
+      expect([200, 422]).toContain(response.status);
     });
 
     test("should handle various signature formats and edge cases", async () => {
@@ -392,7 +392,7 @@ describe("Edge Cases Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(signatureVariants);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
     });
 
     test("should handle COR entries with extreme order numbers", async () => {
@@ -419,7 +419,7 @@ describe("Edge Cases Integration Tests", () => {
         .send(extremeOrderData);
 
       // Should handle extreme but valid order numbers
-      expect([201, 422]).toContain(response.status);
+      expect([200, 422]).toContain(response.status);
     });
 
     test("should handle mixed file types and languages", async () => {
@@ -462,7 +462,7 @@ describe("Edge Cases Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(mixedLanguageData);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
 
       // Verify data integrity across different file types
       client.setBearerToken(bearerToken);

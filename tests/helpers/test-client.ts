@@ -26,7 +26,7 @@ export class TestClient {
       .post("/v1/workspaces")
       .set("Authorization", this.apiKey)
       .send({ name })
-      .expect(201);
+      .expect(200);
   }
 
   async getWorkspace(id: string) {
@@ -82,7 +82,7 @@ export class TestClient {
       .post("/v1/tokens")
       .set("Authorization", this.apiKey)
       .send(body)
-      .expect(201);
+      .expect(200);
   }
 
   async getToken(id: string) {
@@ -125,7 +125,7 @@ export class TestClient {
       .post(`/v1/cors/${workspaceId}`)
       .set("Authorization", this.bearerToken)
       .send({ entries })
-      .expect(201);
+      .expect(200);
   }
 
   async getCORData(workspaceId: string) {

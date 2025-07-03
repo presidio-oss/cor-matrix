@@ -22,7 +22,7 @@ export default new Elysia({
     async ({ workspace, body, status }) => {
       try {
         const result = await workspace.create(body.name);
-        return status(201, result);
+        return status(200, result);
       } catch (error: any) {
         if (error.code === "WORKSPACE_ALREADY_EXISTS") {
           return status(409, {
@@ -50,7 +50,7 @@ export default new Elysia({
         }),
       }),
       response: {
-        201: t.Object({
+        200: t.Object({
           id: t.String({
             description: "The ID of the workspace",
             examples: ["ws:01JWGPXJEC17YGK9X60P8RA8AZ"],

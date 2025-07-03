@@ -96,12 +96,13 @@ npx @presidio-dev/cor-matrix report \
 Example output:
 
 ```
- COR-Matrix REPORT
-────────────────────────────────────────────────
-AI Generated Lines:             263 (100.00%)
-AI Generated Retained Lines:     40 (15.21%)
-AI Generated Removed/Changed:   223 (84.79%)
-────────────────────────────────────────────────
+ COR-Matrix Report
+────────────────────────────────────────────────────────────────
+Codebase Path:                  /path/to/your/project
+Report Time:                    June 1, 2025 at 6:00 PM
+Total Lines:                    961 (100%)
+AI-Written Lines:               40 of 961 (4.16%)
+────────────────────────────────────────────────────────────────
 ```
 
 ## Development

@@ -19,7 +19,7 @@ export class WorkspaceService {
   /**
    * Create a new workspace
    */
-  async create(name: string): Promise<any> {
+  async create(name: string): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -70,7 +70,7 @@ export class WorkspaceService {
   /**
    * Get workspace by ID
    */
-  async getById(id: string): Promise<any> {
+  async getById(id: string): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
       const result = await connection
@@ -79,7 +79,7 @@ export class WorkspaceService {
         .where(eq(WorkspaceTable.id, id))
         .limit(1);
 
-      if (!result.length) {
+      if (!result.length || !result[0]) {
         logger.error(`Workspace with id ${id} not found`);
         throw new WorkspaceNotFoundError({
           message: `Workspace with id ${id} not found`,
@@ -106,7 +106,7 @@ export class WorkspaceService {
     includeArchived: boolean = false,
     limit: number = 50,
     offset: number = 0,
-  ): Promise<any[]> {
+  ): Promise<(typeof WorkspaceTable.$inferSelect)[]> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -148,7 +148,7 @@ export class WorkspaceService {
       name?: string;
       isArchived?: boolean;
     },
-  ): Promise<any> {
+  ): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -211,7 +211,7 @@ export class WorkspaceService {
   /**
    * Delete workspace and cascade delete related tokens
    */
-  async delete(id: string): Promise<any> {
+  async delete(id: string): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       const connection = this.dbService.getConnection();
 
@@ -251,7 +251,7 @@ export class WorkspaceService {
   /**
    * Archive workspace (soft delete)
    */
-  async archive(id: string): Promise<any> {
+  async archive(id: string): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       return await this.update(id, { isArchived: true });
     } catch (error) {
@@ -269,7 +269,7 @@ export class WorkspaceService {
   /**
    * Unarchive workspace
    */
-  async unarchive(id: string): Promise<any> {
+  async unarchive(id: string): Promise<typeof WorkspaceTable.$inferSelect> {
     try {
       return await this.update(id, { isArchived: false });
     } catch (error) {
