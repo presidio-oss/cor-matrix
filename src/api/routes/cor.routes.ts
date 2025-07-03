@@ -109,7 +109,7 @@ export default new Elysia({
     async ({ cor, params: { workspaceId }, body: { entries }, status }) => {
       try {
         const result = await cor.recordCodeOrigin(workspaceId, entries);
-        return status(201, result);
+        return status(200, result);
       } catch (error: any) {
         return status(500, {
           error: error.message,
@@ -166,7 +166,7 @@ export default new Elysia({
         description: "Record code origin",
       },
       response: {
-        201: t.Object({
+        200: t.Object({
           ok: t.Boolean(),
           message: t.String(),
         }),

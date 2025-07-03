@@ -204,7 +204,7 @@ describe("Security Integration Tests", () => {
         workspaceId,
         corData.entries,
       );
-      expect(recordResponse.status).toBe(201);
+      expect(recordResponse.status).toBe(200);
 
       // Assert: Token management operations should still work
       const updateResponse = await client
@@ -301,7 +301,7 @@ describe("Security Integration Tests", () => {
         workspaceId,
         newCorData.entries,
       );
-      expect(newRecordResponse.status).toBe(201);
+      expect(newRecordResponse.status).toBe(200);
     });
   });
 });

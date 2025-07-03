@@ -35,7 +35,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
       const corData = createTestCORData();
       const response = await client.recordCOR(testWorkspaceId, corData.entries);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
       expect(response.body).toHaveProperty("message");
     });
@@ -64,7 +64,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         largeCORData.entries,
       );
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
 
       const retrieveResponse = await client.getCORData(testWorkspaceId);
@@ -144,7 +144,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send({ entries: [] });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
     });
 
@@ -167,7 +167,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(entryWithEmptyCors);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
     });
 
@@ -195,8 +195,8 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(invalidSignatureData);
 
-      // This might be 422 (validation error) or 201 (accepted), depending on server validation
-      expect([201, 422]).toContain(response.status);
+      // This might be 422 (validation error) or 200 (accepted), depending on server validation
+      expect([200, 422]).toContain(response.status);
     });
 
     test("should handle various file extensions and languages", async () => {
@@ -232,7 +232,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(multiLanguageData);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
     });
 
@@ -258,7 +258,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken)
         .send(boundaryData);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("ok", true);
     });
   });
@@ -274,7 +274,7 @@ describe("Code Origin Recording (COR) API Integration Tests", () => {
         .set("Authorization", bearerToken.replace("Bearer ", ""))
         .send({ entries: corData.entries });
 
-      expect(noPrefixResponse.status).toBe(201); // Raw token format should work
+      expect(noPrefixResponse.status).toBe(200); // Raw token format should work
 
       // Test with incorrect prefix (should fail)
       const wrongPrefixResponse = await client

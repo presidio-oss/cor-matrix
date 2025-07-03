@@ -22,7 +22,7 @@ describe("Token API Integration Tests", () => {
       const description = "Integration test token";
       const response = await client.createToken(testWorkspaceId, description);
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("id");
       expect(response.body).toHaveProperty("workspaceId", testWorkspaceId);
       expect(response.body).toHaveProperty("token");
@@ -198,7 +198,7 @@ describe("Token API Integration Tests", () => {
         futureTimestamp,
       );
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("expiresAt", futureTimestamp);
       expect(response.body).toHaveProperty("isRevoked", false);
     });
@@ -214,7 +214,7 @@ describe("Token API Integration Tests", () => {
           expiresAt: null,
         });
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("expiresAt", null);
     });
 
@@ -260,7 +260,7 @@ describe("Token API Integration Tests", () => {
         });
 
       // This should still create the token (server-side expiration logic may vary)
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("expiresAt", pastTimestamp);
     });
   });
