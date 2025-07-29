@@ -5,11 +5,13 @@ import { isBinaryFile } from "isbinaryfile";
 export async function listFilesRecursive(dir: string): Promise<string[]> {
   const files = await ignoreWalk({
     path: dir,
-    ignoreFiles: [".gitignore"],
+    ignoreFiles: [".gitignore", ".npmignore"],
     includeEmpty: false,
     follow: false,
   });
-  return files.map((f) => path.join(dir, f));
+  return files
+    .filter((f) => !f.startsWith(".git/"))
+    .map((f) => path.join(dir, f));
 }
 
 export async function excludeBinaryFiles(files: string[]): Promise<string[]> {
@@ -22,7 +24,7 @@ export async function excludeBinaryFiles(files: string[]): Promise<string[]> {
         // If isbinaryfile throws, treat it as a file to exclude
         return { file, isBinary: true };
       }
-    }),
+    })
   );
 
   return fileChecks.filter(({ isBinary }) => !isBinary).map(({ file }) => file);
