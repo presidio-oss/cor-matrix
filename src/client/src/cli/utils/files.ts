@@ -2,15 +2,19 @@ import path from "node:path";
 import ignoreWalk from "ignore-walk";
 import { isBinaryFile } from "isbinaryfile";
 
+const IGNORE_FILES = [".gitignore", ".npmignore"];
+const IGNORE_DIRS = [".git"];
+
 export async function listFilesRecursive(dir: string): Promise<string[]> {
   const files = await ignoreWalk({
     path: dir,
-    ignoreFiles: [".gitignore", ".npmignore"],
+    ignoreFiles: IGNORE_FILES,
     includeEmpty: false,
     follow: false,
   });
   return files
-    .filter((f) => !f.startsWith(".git/"))
+    .filter((f) => !IGNORE_FILES.some((ignore) => f.startsWith(ignore)))
+    .filter((f) => !IGNORE_DIRS.some((ignore) => f.startsWith(ignore)))
     .map((f) => path.join(dir, f));
 }
 
